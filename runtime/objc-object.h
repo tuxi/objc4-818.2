@@ -566,20 +566,22 @@ objc_object::rootDealloc()
 {
     if (isTaggedPointer()) return;  // fixme necessary?
 
-    if (fastpath(isa.nonpointer                     &&
-                 !isa.weakly_referenced             &&
-                 !isa.has_assoc                     &&
+    if (fastpath(isa.nonpointer                     &&  //为1表示优化后的isa即isa_t
+                 !isa.weakly_referenced             &&  // 有无弱引用
+                 !isa.has_assoc                     &&  // 有无关联属性
 #if ISA_HAS_CXX_DTOR_BIT
-                 !isa.has_cxx_dtor                  &&
+                 !isa.has_cxx_dtor                  &&  // 是否需要调用c++的析构函数
 #else
                  !isa.getClass(false)->hasCxxDtor() &&
 #endif
-                 !isa.has_sidetable_rc))
+                 !isa.has_sidetable_rc)) // 有没有使用sideTable存储引用计数
     {
         assert(!sidetable_present());
+        // 当没有弱引用、无关联属性、无需要调用的c++析构函数函数、未使用sideTable存储引用计数时，直接释放对象
         free(this);
     } 
     else {
+        // 否则需要做释放工作
         object_dispose((id)this);
     }
 }

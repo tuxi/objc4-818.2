@@ -11,6 +11,7 @@
 
 
 #import <Foundation/Foundation.h>
+#import "objc_debug-Swift.h"
 
 @interface Person : NSObject
 
@@ -27,6 +28,13 @@ int main(int argc, const char * argv[]) {
         Person *p = [Person new];
         __weak NSObject *obj = p;
         NSLog(@"%@", obj);
+        
+        id __autoreleasing obj1 = [NSObject new];
+        NSLog(@"%@", obj1);
+        
+        SwiftObj *swiftObj = [SwiftObj new];
+        [swiftObj run];
+        NSLog(@"");
     }
     return 0;
 }

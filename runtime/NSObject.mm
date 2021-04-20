@@ -1508,7 +1508,7 @@ objc_object::sidetable_unlock()
     table.unlock();
 }
 
-
+// 将整个引用计数移到 SideTable，不管是正在释放的还是弱引用的都移过去。
 // Move the entire retain count to the side table, 
 // as well as isDeallocating and weaklyReferenced.
 void 
@@ -1517,15 +1517,19 @@ objc_object::sidetable_moveExtraRC_nolock(size_t extra_rc,
                                           bool weaklyReferenced)
 {
     ASSERT(!isa.nonpointer);        // should already be changed to raw pointer
+    // 从全局 SideTables 中获取当前对象的 SideTable
     SideTable& table = SideTables()[this];
 
+    // 获取 引用计数值 (特殊存储的值，就是使用了位域技术处理的值)
     size_t& refcntStorage = table.refcnts[this];
     size_t oldRefcnt = refcntStorage;
     // not deallocating - that was in the isa
     ASSERT((oldRefcnt & SIDE_TABLE_DEALLOCATING) == 0);  
     ASSERT((oldRefcnt & SIDE_TABLE_WEAKLY_REFERENCED) == 0);  
-
+    // 是否使用 位域 技术
     uintptr_t carry;
+    // addc (address carry) 基本猜测是 内存地址携带 功能，即 位域处理，
+    // 这个方法就是用来保存引用计数值的，不过会按照是否使用位域技术进行保存罢了。
     size_t refcnt = addc(oldRefcnt, (extra_rc - 1) << SIDE_TABLE_RC_SHIFT, 0, &carry);
     if (carry) refcnt = SIDE_TABLE_RC_PINNED;
     if (isDeallocating) refcnt |= SIDE_TABLE_DEALLOCATING;
@@ -1534,15 +1538,18 @@ objc_object::sidetable_moveExtraRC_nolock(size_t extra_rc,
     refcntStorage = refcnt;
 }
 
-
+// 将一些引用计数从 isa 位域移到 SideTable。如果对象现在被锁定 (SIDE_TABLE_RC_PINNED == 1)，则返回 true。
+// 首先 isa 也使用了位域技术，不过它被称为 Tagged Pointer 标记指针罢了。isa 里面也保存了很多信息。
 // Move some retain counts to the side table from the isa field.
 // Returns true if the object is now pinned.
 bool 
 objc_object::sidetable_addExtraRC_nolock(size_t delta_rc)
 {
     ASSERT(isa.nonpointer);
+    // 从全局 SideTables 中获取当前对象的 SideTable
     SideTable& table = SideTables()[this];
-
+    
+    // 获取 引用计数值 (特殊存储的值，就是使用了位域技术处理的值)
     size_t& refcntStorage = table.refcnts[this];
     size_t oldRefcnt = refcntStorage;
     // isa-side bits should not be set here
@@ -1550,8 +1557,11 @@ objc_object::sidetable_addExtraRC_nolock(size_t delta_rc)
     ASSERT((oldRefcnt & SIDE_TABLE_WEAKLY_REFERENCED) == 0);
 
     if (oldRefcnt & SIDE_TABLE_RC_PINNED) return true;
-
+    
+    // 是否使用 位域 技术
     uintptr_t carry;
+    // addc (address carry) 基本猜测是 内存地址携带 功能，即 位域处理，
+    // 这个方法就是用来保存引用计数值的，不过会按照是否使用位域技术进行保存罢了。
     size_t newRefcnt = 
         addc(oldRefcnt, delta_rc << SIDE_TABLE_RC_SHIFT, 0, &carry);
     if (carry) {
@@ -1560,12 +1570,13 @@ objc_object::sidetable_addExtraRC_nolock(size_t delta_rc)
         return true;
     }
     else {
+        // 直接赋值，值本身就是引用计数值的真实值
         refcntStorage = newRefcnt;
         return false;
     }
 }
 
-
+// 将引用计数值从 SideTable 移动到 isa 位域中。返回减去的实际引用计数值，该值可能小于请求的值。
 // Move some retain counts from the side table to the isa field.
 // Returns the actual count subtracted, which may be less than the request.
 objc_object::SidetableBorrow
@@ -1591,7 +1602,7 @@ objc_object::sidetable_subExtraRC_nolock(size_t delta_rc)
     return { delta_rc, newRefcnt >> SIDE_TABLE_RC_SHIFT };
 }
 
-
+// 返回引用计数值
 size_t 
 objc_object::sidetable_getExtraRC_nolock()
 {
@@ -1667,15 +1678,18 @@ objc_object::sidetable_tryRetain()
     return result;
 }
 
-
+// 获取对象的retainCount
 uintptr_t
 objc_object::sidetable_retainCount()
 {
+    // 从全局SideTables 中获取当前对象的SideTable
     SideTable& table = SideTables()[this];
 
     size_t refcnt_result = 1;
     
+    // 自旋锁
     table.lock();
+    // 获取 引用计数值 (特殊存储的值，可能使用了位域技术处理的值)
     RefcountMap::iterator it = table.refcnts.find(this);
     if (it != table.refcnts.end()) {
         // this is valid for SIDE_TABLE_RC_PINNED too

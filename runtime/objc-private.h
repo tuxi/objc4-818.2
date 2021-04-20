@@ -908,6 +908,8 @@ enum { CacheLineSize = 64 };
 // for cache-friendly lock striping. 
 // For example, this may be used as StripedMap<spinlock_t>
 // or as StripedMap<SomeStruct> where SomeStruct stores a spin lock.
+// StripMap 内部的实质是一个开放寻址法生成哈希键值的散列表 (虽然是写着的 array ，但是是一个散列表)
+// 它的功能就是把自旋锁的锁操作从类中分离出来，而且类中必须要有一个自旋锁属性
 template<typename T>
 class StripedMap {
 #if TARGET_OS_IPHONE && !TARGET_OS_SIMULATOR
@@ -919,9 +921,10 @@ class StripedMap {
     struct PaddedT {
         T value alignas(CacheLineSize);
     };
-
+    // Hash 表数据
     PaddedT array[StripeCount];
-
+    // Hash 键值生成函数
+    // 根据对象的内存地址计算，数组中的具体下标值
     static unsigned int indexForPointer(const void *p) {
         uintptr_t addr = reinterpret_cast<uintptr_t>(p);
         return ((addr >> 4) ^ (addr >> 9)) % StripeCount;
