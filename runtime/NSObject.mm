@@ -707,6 +707,7 @@ private:
     // pushed and it has never contained any objects. This saves memory 
     // when the top level (i.e. libdispatch) pushes and pops pools but 
     // never uses them.
+    // 当一个pool被push的时候EMPTY_POOL_PLACEHOLDER会被存储在TLS中，它并不包含任何对象，当我们在使用libdispatch，也就是GCD的时候进行push和pop的时候回节约内存,这里本人理解因为在runloop中使用了大量GCD的知识，而且Runloop当中又和自动释放池有紧密的关系，所以可能是这个原因
 #   define EMPTY_POOL_PLACEHOLDER ((id*)1)
 
 #   define POOL_BOUNDARY nil

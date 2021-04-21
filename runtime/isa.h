@@ -40,7 +40,6 @@
 #   error bad config
 #endif
 
-
 #if SUPPORT_PACKED_ISA
 
     // extra_rc must be the MSB-most field (so it matches carry/overflow flags)
@@ -76,6 +75,21 @@
 #     define ISA_MAGIC_MASK  0x000003f000000001ULL
 #     define ISA_MAGIC_VALUE 0x000001a000000001ULL
 #     define ISA_HAS_CXX_DTOR_BIT 1
+/*
+ // arm64 架构
+ struct {
+     uintptr_t nonpointer        : 1;  // 0:普通指针，1:优化过，使用位域存储更多信息
+     uintptr_t has_assoc         : 1;  // 对象是否含有或曾经含有关联引用
+     uintptr_t has_cxx_dtor      : 1;  // 表示是否有C++析构函数或OC的dealloc
+     uintptr_t shiftcls          : 33; // 存放着 Class、Meta-Class 对象的内存地址信息
+     uintptr_t magic             : 6;  // 用于在调试时分辨对象是否未完成初始化
+     uintptr_t weakly_referenced : 1;  // 是否被弱引用指向
+     uintptr_t deallocating      : 1;  // 对象是否正在释放
+     uintptr_t has_sidetable_rc  : 1;  // 是否需要使用 sidetable 来存储引用计数
+     uintptr_t extra_rc          : 19;  // 引用计数能够用 19 个二进制位存储时，直接存储在这里
+ };
+
+ */
 #     define ISA_BITFIELD                                                      \
         uintptr_t nonpointer        : 1;                                       \
         uintptr_t has_assoc         : 1;                                       \
@@ -95,6 +109,20 @@
 #   define ISA_MAGIC_MASK  0x001f800000000001ULL
 #   define ISA_MAGIC_VALUE 0x001d800000000001ULL
 #   define ISA_HAS_CXX_DTOR_BIT 1
+/*
+ // x86_64 架构
+ struct {
+     uintptr_t nonpointer        : 1;  // 0:普通指针，1:优化过，使用位域存储更多信息
+     uintptr_t has_assoc         : 1;  // 对象是否含有或曾经含有关联引用
+     uintptr_t has_cxx_dtor      : 1;  // 表示是否有C++析构函数或OC的dealloc
+     uintptr_t shiftcls          : 44; // 存放着 Class、Meta-Class 对象的内存地址信息
+     uintptr_t magic             : 6;  // 用于在调试时分辨对象是否未完成初始化
+     uintptr_t weakly_referenced : 1;  // 是否被弱引用指向
+     uintptr_t deallocating      : 1;  // 对象是否正在释放
+     uintptr_t has_sidetable_rc  : 1;  // 是否需要使用 sidetable 来存储引用计数
+     uintptr_t extra_rc          : 8;  // 引用计数能够用 8 个二进制位存储时，直接存储在这里
+ };
+ */
 #   define ISA_BITFIELD                                                        \
       uintptr_t nonpointer        : 1;                                         \
       uintptr_t has_assoc         : 1;                                         \
@@ -111,6 +139,13 @@
 # else
 #   error unknown architecture for packed isa
 # endif
+
+/*
+ 这里的has_sidetable_rc 和 extra_rc 的注意点：
+ 1.has_sidetable_rc 表明该指针是否引用了sidetable散列表，之所以有这个选项，是因为少量的引用计数不会直接存放在SideTables表中的，
+ 对象的引用计数会先存放在extra_rc中，当其被存满时，才会存入相应的SideTables散列表中，SideTables中有很多张SideTable，每一个SideTable也都是一个散列表，而引用计数表也包含在SideTable 中。
+ 2.extra_rc 在iSA中存储的引用计数， 当处于x86_64平台时能够存储8个二进制位的引用计数，arm64 平台能存储19个二进制位的引用计数
+ */
 
 // SUPPORT_PACKED_ISA
 #endif

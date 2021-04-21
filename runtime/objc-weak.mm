@@ -318,7 +318,7 @@ weak_entry_for_referent(weak_table_t *weak_table, objc_object *referent)
     size_t index = begin;
     size_t hash_displacement = 0;
     // 处理hash冲突：
-    // weak_table->weak_entries[index].referent != referent 如果根据index位置的referent 不是 当前referent，则处理冲突
+    // weak_table->weak_entries[index].referent != referent 如果根据index位置的referent 不是 当前referent，则处理hash冲突
     while (weak_table->weak_entries[index].referent != referent) {
         index = (index+1) & weak_table->mask;
         if (index == begin) bad_weak_table(weak_table->weak_entries);
