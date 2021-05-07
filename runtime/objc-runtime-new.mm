@@ -6389,6 +6389,7 @@ IMP lookUpImpOrNilTryCache(id inst, SEL sel, Class cls, int behavior)
     return _lookUpImpTryCache(inst, sel, cls, behavior | LOOKUP_NIL);
 }
 
+// 消息查找和转发流程入口，由objc_msg_send的汇编代码调用
 NEVER_INLINE
 IMP lookUpImpOrForward(id inst, SEL sel, Class cls, int behavior)
 {
